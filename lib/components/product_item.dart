@@ -1,19 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:shop/exceptions/http_exceptions.dart';
 import 'package:shop/models/product.dart';
 import 'package:shop/models/product_list.dart';
 import 'package:shop/routes/app_routes.dart';
 
 class ProductItem extends StatelessWidget {
   final Product product;
-
-  const ProductItem({
+  const ProductItem(
+    this.product, {
     Key? key,
-    required this.product,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    final msg = ScaffoldMessenger.of(context);
     return ListTile(
       leading: CircleAvatar(
         backgroundImage: NetworkImage(product.imageUrl),
@@ -24,41 +25,51 @@ class ProductItem extends StatelessWidget {
         child: Row(
           children: [
             IconButton(
-              icon: const Icon(Icons.edit),
+              icon: Icon(Icons.edit),
               color: Theme.of(context).colorScheme.primary,
               onPressed: () {
-                Navigator.of(context)
-                    .pushNamed(AppRoutes.PRODUCT_FORM, arguments: product);
+                Navigator.of(context).pushNamed(
+                  AppRoutes.PRODUCT_FORM,
+                  arguments: product,
+                );
               },
             ),
             IconButton(
-              icon: const Icon(Icons.delete),
-              color: Theme.of(context).colorScheme.error,
+              icon: Icon(Icons.delete),
+              color: Theme.of(context).errorColor,
               onPressed: () {
-                showDialog(
-                    context: context,
-                    builder: (ctx) => AlertDialog(
-                          title: const Text('Excluir Produto'),
-                          content: const Text('Tem certeza?'),
-                          actions: [
-                            TextButton(
-                              child: const Text('Não'),
-                              onPressed: () {
-                                return Navigator.of(context).pop();
-                              },
-                            ),
-                            TextButton(
-                              child: const Text('Sim'),
-                              onPressed: () {
-                                Provider.of<ProductList>(
-                                  context,
-                                  listen: false,
-                                ).removeProduct(product);
-                                return Navigator.of(context).pop();
-                              },
-                            )
-                          ],
-                        ));
+                showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text('Excluir Produto?'),
+                    content: Text('Tem certeza?'),
+                    actions: [
+                      TextButton(
+                        child: Text('Não'),
+                        onPressed: () => Navigator.of(ctx).pop(false),
+                      ),
+                      TextButton(
+                        child: Text('Sim'),
+                        onPressed: () => Navigator.of(ctx).pop(true),
+                      ),
+                    ],
+                  ),
+                ).then((value) async {
+                  if (value ?? false) {
+                    try {
+                      await Provider.of<ProductList>(
+                        context,
+                        listen: false,
+                      ).removeProduct(product);
+                    } on HttpExceptions catch (error) {
+                      msg.showSnackBar(
+                        SnackBar(
+                          content: Text(error.toString()),
+                        ),
+                      );
+                    }
+                  }
+                });
               },
             ),
           ],
